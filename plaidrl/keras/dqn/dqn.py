@@ -40,6 +40,7 @@ class DQNTrainer(KerasTrainer):
         super().__init__()
         self.qf = qf
         self.target_qf = target_qf
+
         self.learning_rate = learning_rate
         self.soft_target_tau = soft_target_tau
         self.target_update_period = target_update_period
@@ -52,6 +53,14 @@ class DQNTrainer(KerasTrainer):
         self.eval_statistics = OrderedDict()
         self._n_train_steps_total = 0
         self._need_to_update_eval_statistics = True
+
+        # generate DQN loss update path:
+        action_input = Input(shape=(self.qf.output.shape.dims[-1],))
+        y_pred = Multiply()([self.qf.output, action_input])
+        y_pred = kutil.Sum(axis=1, keepdims=True)(y_pred)
+
+        self.qf_pred = Model(inputs=[self.qf.input, action_input], outputs=y_pred)
+        self.qf_pred.compile(loss=self.qf_criterion, optimizer=self.qf_optimizer)
 
     def train_from_torch(self, batch):
         rewards = batch["rewards"] * self.reward_scale
@@ -70,16 +79,10 @@ class DQNTrainer(KerasTrainer):
         # y_pred = np.sum(self.qf.predict(obs) * actions, axis=1, keepdims=True)
 
         # repliacate the y_pred
-        action_input = Input(shape=(actions.shape[1],))
-        y_pred = Multiply()([self.qf.output, action_input])
-        y_pred = kutil.Sum(axis=1, keepdims=True)(y_pred)
-
-        model_pred = Model(inputs=[self.qf.input, action_input], outputs=y_pred)
-        model_pred.compile(loss=self.qf_criterion, optimizer=self.qf_optimizer)
-        result = model_pred.fit(
+        result = self.qf_model.fit(
             [obs, actions], y_target, callbacks=[History()], verbose=0
         )
-        y_pred = model_pred.predict([obs, actions])
+        y_pred = self.qf_model.predict([obs, actions])
 
         """
         Soft target network updates
