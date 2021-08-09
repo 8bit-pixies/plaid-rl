@@ -79,20 +79,13 @@ class DQNTrainer(KerasTrainer):
         # y_pred = np.sum(self.qf.predict(obs) * actions, axis=1, keepdims=True)
 
         # repliacate the y_pred
-        result = self.qf_model.fit(
+        result = self.qf_pred.fit(
             [obs, actions], y_target, callbacks=[History()], verbose=0
         )
-        y_pred = self.qf_model.predict([obs, actions])
+        y_pred = self.qf_pred.predict([obs, actions])
 
         """
         Soft target network updates
-        """
-        # self.qf_optimizer.zero_grad()
-        # qf_loss.backward()
-        # self.qf_optimizer.step()
-
-        """
-        Soft Updates
         """
         if self._n_train_steps_total % self.target_update_period == 0:
             kutil.soft_update_from_to(self.qf, self.target_qf, self.soft_target_tau)
