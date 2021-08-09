@@ -16,9 +16,8 @@ class KerasOnlineRLAlgorithm(OnlineRLAlgorithm):
         for net in self.trainer.networks:
             net.to(device)
 
-    def training_mode(self, mode):
-        for net in self.trainer.networks:
-            net.train(mode)
+    def training_mode(self, mode=None):
+        pass
 
 
 class KerasBatchRLAlgorithm(BatchRLAlgorithm):
@@ -26,9 +25,7 @@ class KerasBatchRLAlgorithm(BatchRLAlgorithm):
         for net in self.trainer.networks:
             net.to(device)
 
-    def training_mode(self, mode):
-        # for net in self.trainer.networks:
-        #     net.train(mode)
+    def training_mode(self, mode=None):
         pass
 
 
@@ -38,8 +35,7 @@ class KerasTrainer(Trainer, metaclass=abc.ABCMeta):
 
     def train(self, np_batch):
         self._num_train_steps += 1
-        # batch = np_to_pytorch_batch(np_batch)
-        self.train_from_torch(np_batch)
+        self.train_from_keras(np_batch)
 
     def get_diagnostics(self):
         return OrderedDict(
@@ -49,7 +45,7 @@ class KerasTrainer(Trainer, metaclass=abc.ABCMeta):
         )
 
     @abc.abstractmethod
-    def train_from_torch(self, batch):
+    def train_from_keras(self, batch):
         pass
 
     @property

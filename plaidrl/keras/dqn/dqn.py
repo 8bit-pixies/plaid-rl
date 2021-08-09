@@ -7,11 +7,6 @@ from collections import OrderedDict
 
 import numpy as np
 
-# import torch
-# import torch.optim as optim
-# from torch import nn as nn
-
-# import plaidrl.torch.pytorch_util as ptu
 import plaidrl.keras.keras_util as kutil
 from plaidrl.core.eval_util import create_stats_ordered_dict
 from plaidrl.keras.keras_rl_algorithm import KerasTrainer
@@ -62,7 +57,7 @@ class DQNTrainer(KerasTrainer):
         self.qf_pred = Model(inputs=[self.qf.input, action_input], outputs=y_pred)
         self.qf_pred.compile(loss=self.qf_criterion, optimizer=self.qf_optimizer)
 
-    def train_from_torch(self, batch):
+    def train_from_keras(self, batch):
         rewards = batch["rewards"] * self.reward_scale
         terminals = batch["terminals"]
         obs = batch["observations"]
@@ -78,10 +73,8 @@ class DQNTrainer(KerasTrainer):
         # actions is a one-hot vector
         # y_pred = np.sum(self.qf.predict(obs) * actions, axis=1, keepdims=True)
 
-        # repliacate the y_pred
-        result = self.qf_pred.fit(
-            [obs, actions], y_target, callbacks=[History()], verbose=0
-        )
+        # replicate the y_pred
+        result = self.qf_pred.fit([obs, actions], y_target, verbose=0)
         y_pred = self.qf_pred.predict([obs, actions])
 
         """

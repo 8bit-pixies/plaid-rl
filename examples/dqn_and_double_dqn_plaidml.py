@@ -8,7 +8,7 @@ import os
 
 os.environ["KERAS_BACKEND"] = "plaidml.keras.backend"
 
-import plaidrl.torch.pytorch_util as ptu
+
 from plaidrl.data_management.env_replay_buffer import EnvReplayBuffer
 from plaidrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
 from plaidrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
@@ -16,6 +16,7 @@ from plaidrl.launchers.launcher_util import setup_logger
 from plaidrl.policies.keras_argmax import ArgmaxDiscretePolicy
 from plaidrl.samplers.data_collector import MdpPathCollector
 from plaidrl.keras.dqn.dqn import DQNTrainer
+from plaidrl.keras.dqn.double_dqn import DoubleDQNTrainer
 from plaidrl.keras.networks import mlp_builder
 from plaidrl.keras.keras_rl_algorithm import KerasBatchRLAlgorithm
 
@@ -53,6 +54,7 @@ def experiment(variant):
         expl_env,
         expl_policy,
     )
+    # DoubleDQNTrainer
     trainer = DQNTrainer(
         qf=qf,
         target_qf=target_qf,
@@ -72,7 +74,6 @@ def experiment(variant):
         replay_buffer=replay_buffer,
         **variant["algorithm_kwargs"]
     )
-    # algorithm.to(ptu.device)
     algorithm.train()
 
 
