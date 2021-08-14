@@ -2,10 +2,9 @@ import os
 
 os.environ["KERAS_BACKEND"] = "plaidml.keras.backend"
 
-import numpy as np
-
 import keras
 import keras.backend as K
+import numpy as np
 
 # import torch
 # from torch import nn
@@ -13,16 +12,6 @@ import keras.backend as K
 
 def identity(x):
     return x
-
-
-class Sum(keras.layers.Layer):
-    def __init__(self, axis=1, keepdims=True):
-        super().__init__()
-        self.axis = axis
-        self.keepdims = keepdims
-
-    def call(self, inputs):
-        return K.sum(inputs, axis=self.axis, keepdims=self.keepdims)
 
 
 def soft_update_from_to(source, target, tau):

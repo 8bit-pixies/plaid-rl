@@ -5,19 +5,17 @@ os.environ["KERAS_BACKEND"] = "plaidml.keras.backend"
 
 from collections import OrderedDict
 
+import keras.backend as K
+import keras.losses
+import keras.optimizers
 import numpy as np
+from keras import Input, Model
+from keras.callbacks import History
+from keras.layers import Lambda, Multiply
 
 import plaidrl.keras.keras_util as kutil
 from plaidrl.core.eval_util import create_stats_ordered_dict
 from plaidrl.keras.keras_rl_algorithm import KerasTrainer
-
-
-import keras.optimizers
-import keras.losses
-import keras.backend as K
-from keras import Model, Input
-from keras.layers import Multiply
-from keras.callbacks import History
 
 
 class DQNTrainer(KerasTrainer):
@@ -52,7 +50,7 @@ class DQNTrainer(KerasTrainer):
         # generate DQN loss update path:
         action_input = Input(shape=(self.qf.output.shape.dims[-1],))
         y_pred = Multiply()([self.qf.output, action_input])
-        y_pred = kutil.Sum(axis=1, keepdims=True)(y_pred)
+        y_pred = Lambda(lambda x: K.sum(x, axis=1, keepdims=True))(y_pred)
 
         self.qf_pred = Model(inputs=[self.qf.input, action_input], outputs=y_pred)
         self.qf_pred.compile(loss=self.qf_criterion, optimizer=self.qf_optimizer)
