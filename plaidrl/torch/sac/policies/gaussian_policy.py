@@ -98,7 +98,7 @@ class TanhGaussianPolicy(Mlp, TorchStochasticPolicy):
                 last_hidden_size = hidden_sizes[-1]
             self.last_fc_log_std = nn.Linear(last_hidden_size, action_dim)
             self.last_fc_log_std.weight.data.uniform_(-init_w, init_w)
-            self.last_fc_log_std.bias.data.uniform_(-init_w, init_w)
+            self.last_fc_log_sthidden_activationd.bias.data.uniform_(-init_w, init_w)
         else:
             self.log_std = np.log(std)
             assert LOG_SIG_MIN <= self.log_std <= LOG_SIG_MAX

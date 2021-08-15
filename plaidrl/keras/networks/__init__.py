@@ -56,6 +56,6 @@ Algorithm-specific networks should go else-where.
 #     "TwoHeadMlp",
 # ]
 
-from plaidrl.keras.networks.mlp import mlp_builder
+from plaidrl.keras.networks.mlp import mlp_builder, concat_mlp_builder
 
-__all__ = ["mlp_builder"]
+__all__ = ["mlp_builder", "concat_mlp_builder"]

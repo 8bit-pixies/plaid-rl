@@ -1,70 +1,73 @@
-"""
-Run DQN on CartPole-v0.
-Using Plaidml instead of pytorch
-"""
-
 import os
 
 import gym
 
 os.environ["KERAS_BACKEND"] = "plaidml.keras.backend"
 
-
-import keras.losses
-import keras.optimizers
-
+import plaidrl.torch.pytorch_util as ptu
 from plaidrl.data_management.env_replay_buffer import EnvReplayBuffer
-from plaidrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
-from plaidrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
-from plaidrl.keras.dqn.double_dqn import DoubleDQNTrainer
-from plaidrl.keras.dqn.dqn import DQNTrainer
 from plaidrl.keras.keras_rl_algorithm import KerasBatchRLAlgorithm
-from plaidrl.keras.networks import mlp_builder
+from plaidrl.keras.networks import concat_mlp_builder
+from plaidrl.keras.sac.policies import TanhGaussianPolicy, create_gaussian_network
+from plaidrl.keras.sac.sac import SACTrainer
 from plaidrl.launchers.launcher_util import setup_logger
-from plaidrl.policies.keras_argmax import ArgmaxDiscretePolicy
 from plaidrl.samplers.data_collector import MdpPathCollector
 
 
 def experiment(variant):
-    expl_env = gym.make("CartPole-v0").env
-    eval_env = gym.make("CartPole-v0").env
+    expl_env = gym.make("Pendulum-v0").env
+    eval_env = gym.make("Pendulum-v0").env
     obs_dim = expl_env.observation_space.low.size
-    action_dim = eval_env.action_space.n
+    action_dim = eval_env.action_space.low.size
 
-    qf = mlp_builder(
-        hidden_sizes=[32, 32],
-        input_size=obs_dim,
-        output_size=action_dim,
+    M = variant["layer_size"]
+    qf1 = concat_mlp_builder(
+        input_size=[obs_dim, action_dim],
+        output_size=1,
+        hidden_sizes=[M, M],
     )
-    target_qf = mlp_builder(
-        hidden_sizes=[32, 32],
-        input_size=obs_dim,
-        output_size=action_dim,
+    qf2 = concat_mlp_builder(
+        input_size=[obs_dim, action_dim],
+        output_size=1,
+        hidden_sizes=[M, M],
     )
-    qf_criterion = keras.losses.mse
-    eval_policy = ArgmaxDiscretePolicy(qf)
-    expl_policy = PolicyWrappedWithExplorationStrategy(
-        EpsilonGreedy(expl_env.action_space),
-        eval_policy,
+    target_qf1 = concat_mlp_builder(
+        input_size=[obs_dim, action_dim],
+        output_size=1,
+        hidden_sizes=[M, M],
     )
+    target_qf2 = concat_mlp_builder(
+        input_size=[obs_dim, action_dim],
+        output_size=1,
+        hidden_sizes=[M, M],
+    )
+    base_policy = create_gaussian_network(
+        obs_dim=obs_dim,
+        action_dim=action_dim,
+        hidden_sizes=[M, M],
+    )
+    policy = TanhGaussianPolicy(base_policy)
+    eval_policy = TanhGaussianPolicy(base_policy, True)
     eval_path_collector = MdpPathCollector(
         eval_env,
         eval_policy,
     )
     expl_path_collector = MdpPathCollector(
         expl_env,
-        expl_policy,
-    )
-    # DoubleDQNTrainer
-    trainer = DQNTrainer(
-        qf=qf,
-        target_qf=target_qf,
-        qf_criterion=qf_criterion,
-        **variant["trainer_kwargs"]
+        policy,
     )
     replay_buffer = EnvReplayBuffer(
         variant["replay_buffer_size"],
         expl_env,
+    )
+    trainer = SACTrainer(
+        env=eval_env,
+        policy=policy,
+        qf1=qf1,
+        qf2=qf2,
+        target_qf1=target_qf1,
+        target_qf2=target_qf2,
+        **variant["trainer_kwargs"]
     )
     algorithm = KerasBatchRLAlgorithm(
         trainer=trainer,
@@ -81,7 +84,7 @@ def experiment(variant):
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
-        algorithm="DQN",
+        algorithm="SAC",
         version="normal",
         layer_size=256,
         replay_buffer_size=int(1e6),
@@ -96,9 +99,14 @@ if __name__ == "__main__":
         ),
         trainer_kwargs=dict(
             discount=0.99,
-            learning_rate=3e-4,
+            soft_target_tau=5e-3,
+            target_update_period=1,
+            policy_lr=3e-4,
+            qf_lr=3e-4,
+            reward_scale=1,
+            use_automatic_entropy_tuning=True,
         ),
     )
-    setup_logger("dqn-CartPole", variant=variant)
+    setup_logger("name-of-experiment", variant=variant)
     # ptu.set_gpu_mode(True)  # optionally set the GPU (default=False)
     experiment(variant)

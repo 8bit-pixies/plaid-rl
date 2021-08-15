@@ -1,7 +1,11 @@
 import os
+from collections.abc import Iterable
 
 os.environ["KERAS_BACKEND"] = "plaidml.keras.backend"
 
+
+from keras import Input, Model, activations
+from keras.layers import Concatenate, Dense, Layer
 
 from plaidrl.policies.base import Policy
 from plaidrl.pythonplusplus import identity
@@ -11,9 +15,6 @@ from plaidrl.pythonplusplus import identity
 # from plaidrl.torch.data_management.normalizer import TorchFixedNormalizer
 # from plaidrl.torch.networks import LayerNorm
 # from plaidrl.torch.pytorch_util import activation_from_string
-
-from keras import activations, Input, Model
-from keras.layers import Dense
 
 
 def mlp_builder(
@@ -29,6 +30,26 @@ def mlp_builder(
             x = Dense(hidden_size, activation=hidden_activation)(inputs)
         else:
             x = Dense(hidden_size, activation=hidden_activation)(x)
+
+    outputs = Dense(output_size, activation=identity)(x)
+    return Model(inputs=inputs, outputs=outputs)
+
+
+def concat_mlp_builder(
+    hidden_sizes,
+    output_size,
+    input_size,
+    hidden_activation=activations.relu,
+    output_activation=identity,
+    dim=1,
+):
+    if isinstance(input_size, Iterable):
+        inputs = [Input(shape=(x,)) for x in input_size]
+    else:
+        inputs = Input(shape=(input_size,))
+    x = Concatenate(axis=dim)(inputs)
+    for hidden_size in hidden_sizes:
+        x = Dense(hidden_size, activation=hidden_activation)(x)
 
     outputs = Dense(output_size, activation=identity)(x)
     return Model(inputs=inputs, outputs=outputs)

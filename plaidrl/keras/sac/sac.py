@@ -1,6 +1,10 @@
 from collections import OrderedDict, namedtuple
 from typing import Tuple
+import os
 
+os.environ["KERAS_BACKEND"] = "plaidml.keras.backend"
+
+import keras
 import gtimer as gt
 import numpy as np
 import torch
@@ -11,7 +15,7 @@ import plaidrl.torch.pytorch_util as ptu
 from plaidrl.core.eval_util import create_stats_ordered_dict
 from plaidrl.core.logging import add_prefix
 from plaidrl.core.loss import LossFunction, LossStatistics
-from plaidrl.torch.torch_rl_algorithm import TorchTrainer
+from plaidrl.keras.keras_rl_algorithm import KerasTrainer
 
 SACLosses = namedtuple(
     "SACLosses",
@@ -19,7 +23,7 @@ SACLosses = namedtuple(
 )
 
 
-class SACTrainer(TorchTrainer, LossFunction):
+class SACTrainer(KerasTrainer):
     def __init__(
         self,
         env,
@@ -32,7 +36,7 @@ class SACTrainer(TorchTrainer, LossFunction):
         reward_scale=1.0,
         policy_lr=1e-3,
         qf_lr=1e-3,
-        optimizer_class=optim.Adam,
+        optimizer_class=keras.optimizers.Adam,
         soft_target_tau=1e-2,
         target_update_period=1,
         plotter=None,
@@ -50,7 +54,15 @@ class SACTrainer(TorchTrainer, LossFunction):
         self.soft_target_tau = soft_target_tau
         self.target_update_period = target_update_period
 
-        self.use_automatic_entropy_tuning = use_automatic_entropy_tuning
+        # not implemented yet!
+        self.use_automatic_entropy_tuning = False  # use_automatic_entropy_tuning
+        if target_entropy is None:
+            # Use heuristic value from SAC paper
+            self.target_entropy = -np.prod(self.env.action_space.shape).item()
+        else:
+            self.target_entropy = target_entropy
+
+        # not implemented yet...
         if self.use_automatic_entropy_tuning:
             if target_entropy is None:
                 # Use heuristic value from SAC paper
@@ -70,15 +82,12 @@ class SACTrainer(TorchTrainer, LossFunction):
         self.vf_criterion = nn.MSELoss()
 
         self.policy_optimizer = optimizer_class(
-            self.policy.parameters(),
             lr=policy_lr,
         )
         self.qf1_optimizer = optimizer_class(
-            self.qf1.parameters(),
             lr=qf_lr,
         )
         self.qf2_optimizer = optimizer_class(
-            self.qf2.parameters(),
             lr=qf_lr,
         )
 
@@ -88,7 +97,7 @@ class SACTrainer(TorchTrainer, LossFunction):
         self._need_to_update_eval_statistics = True
         self.eval_statistics = OrderedDict()
 
-    def train_from_torch(self, batch):
+    def train_from_keras(self, batch):
         gt.blank_stamp()
         losses, stats = self.compute_loss(
             batch,

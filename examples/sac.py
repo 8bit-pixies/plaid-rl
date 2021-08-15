@@ -1,40 +1,37 @@
-from gym.envs.mujoco import HalfCheetahEnv
-
 import plaidrl.torch.pytorch_util as ptu
 from plaidrl.data_management.env_replay_buffer import EnvReplayBuffer
-from plaidrl.envs.wrappers import NormalizedBoxEnv
+from plaidrl.keras.keras_rl_algorithm import KerasBatchRLAlgorithm
+from plaidrl.keras.networks import concat_mlp_builder
 from plaidrl.launchers.launcher_util import setup_logger
 from plaidrl.samplers.data_collector import MdpPathCollector
-from plaidrl.torch.networks import ConcatMlp
 from plaidrl.torch.sac.policies import MakeDeterministic, TanhGaussianPolicy
 from plaidrl.torch.sac.sac import SACTrainer
-from plaidrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
 
 def experiment(variant):
-    expl_env = NormalizedBoxEnv(HalfCheetahEnv())
-    eval_env = NormalizedBoxEnv(HalfCheetahEnv())
+    expl_env = gym.make("Pendulum-v0").env
+    eval_env = gym.make("Pendulum-v0").env
     obs_dim = expl_env.observation_space.low.size
     action_dim = eval_env.action_space.low.size
 
     M = variant["layer_size"]
-    qf1 = ConcatMlp(
-        input_size=obs_dim + action_dim,
+    qf1 = concat_mlp_builder(
+        input_size=[obs_dim, action_dim],
         output_size=1,
         hidden_sizes=[M, M],
     )
-    qf2 = ConcatMlp(
-        input_size=obs_dim + action_dim,
+    qf2 = concat_mlp_builder(
+        input_size=[obs_dim, action_dim],
         output_size=1,
         hidden_sizes=[M, M],
     )
-    target_qf1 = ConcatMlp(
-        input_size=obs_dim + action_dim,
+    target_qf1 = concat_mlp_builder(
+        input_size=[obs_dim, action_dim],
         output_size=1,
         hidden_sizes=[M, M],
     )
-    target_qf2 = ConcatMlp(
-        input_size=obs_dim + action_dim,
+    target_qf2 = concat_mlp_builder(
+        input_size=[obs_dim, action_dim],
         output_size=1,
         hidden_sizes=[M, M],
     )
@@ -65,7 +62,7 @@ def experiment(variant):
         target_qf2=target_qf2,
         **variant["trainer_kwargs"]
     )
-    algorithm = TorchBatchRLAlgorithm(
+    algorithm = KerasBatchRLAlgorithm(
         trainer=trainer,
         exploration_env=expl_env,
         evaluation_env=eval_env,
@@ -74,7 +71,6 @@ def experiment(variant):
         replay_buffer=replay_buffer,
         **variant["algorithm_kwargs"]
     )
-    algorithm.to(ptu.device)
     algorithm.train()
 
 
